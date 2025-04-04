@@ -27,8 +27,8 @@ export default async function handler(req, res) {
         if (userMessage === "/start") {
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
-            text: `👋 Hi there! I'm your friendly Gemini AI assistant! 🤖💬 How can I help you today? 😊\n\nFeel free to ask me anything or check out my GitHub profile: [jomadlcrz](https://github.com/jomadlcrz) 🙌`,
-            parse_mode: "Markdown", // Use Markdown for formatting
+            text: "Hello! I'm your AI assistant. How can I help you today?\n\nCheck out my GitHub profile: [jomadlcrz](https://github.com/jomadlcrz)",
+            parse_mode: "Markdown",
           });
           return res.status(200).json({ status: "success" });
         }
@@ -38,8 +38,8 @@ export default async function handler(req, res) {
           conversationHistory.delete(chat.id); // Reset the conversation history for the user
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
-            text: "*Conversation reset!* 🎉✅ _You can now start fresh. Just ask me anything._",
-            parse_mode: "Markdown", // Set parse mode if needed
+            text: "Conversation reset. Start a new conversation by asking a question.",
+            parse_mode: "Markdown",
           });
           return res.status(200).json({ status: "success" });
         }
@@ -47,8 +47,8 @@ export default async function handler(req, res) {
         // Send a "Processing your request..." message first and store the message ID
         const sentMessage = await axios.post(TELEGRAM_URL, {
           chat_id: chat.id,
-          text: "_Hold on, I'm working on it..._ 🧠✨",
-          parse_mode: "Markdown", // Use Markdown formatting for processing message
+          text: "Processing your request...",
+          parse_mode: "Markdown",
         });
 
         const messageId = sentMessage.data.result.message_id; // Store the message ID of the sent message
@@ -65,10 +65,7 @@ export default async function handler(req, res) {
           contents: history.join("\n"), // Join all history as a single input
         });
 
-        let responseText = aiResponse.text;
-
-        // Make the response more friendly
-        responseText = `✨ Here's something I came up with for you:\n\n${responseText}\n\nI hope this helps! 😄 Feel free to ask anything else, I'm here for you! 💬`;
+        const responseText = aiResponse.text;
 
         // Add the AI response to the conversation history (no "AI:" prefix)
         history.push(responseText); // Just add the raw response
@@ -81,18 +78,18 @@ export default async function handler(req, res) {
           chat_id: chat.id,
           message_id: messageId,
           text: responseText,
-          parse_mode: "Markdown", // Set parse mode for formatting
+          parse_mode: "Markdown",
         });
 
         return res.status(200).json({ status: "success" });
       } catch (error) {
         console.error("Error generating content:", error);
-        return res.status(500).json({ error: "Oops! Something went wrong while processing your request. 😔 Please try again." });
+        return res.status(500).json({ error: "Error generating content" });
       }
     } else {
-      return res.status(400).json({ error: "Whoops! I couldn't find any message. 😕 Please send me a message." });
+      return res.status(400).json({ error: "No message found" });
     }
   } else {
-    return res.status(405).json({ error: "Oops! That method is not allowed. Please use POST requests." });
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 }
