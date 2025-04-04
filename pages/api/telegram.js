@@ -65,7 +65,10 @@ export default async function handler(req, res) {
           contents: history.join("\n"), // Join all history as a single input
         });
 
-        const responseText = aiResponse.text;
+        let responseText = aiResponse.text;
+
+        // Make the response more friendly
+        responseText = `✨ Here's something I came up with for you:\n\n${responseText}\n\nI hope this helps! 😄 Feel free to ask anything else, I'm here for you! 💬`;
 
         // Add the AI response to the conversation history (no "AI:" prefix)
         history.push(responseText); // Just add the raw response
