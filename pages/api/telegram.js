@@ -26,7 +26,8 @@ export default async function handler(req, res) {
         // Send a "Processing your request..." message first and store the message ID
         const sentMessage = await axios.post(TELEGRAM_URL, {
           chat_id: chat.id,
-          text: "Processing your request...",
+          text: "_Processing your request..._",
+          parse_mode: "Markdown",  // You can also use "HTML" here
         });
 
         const messageId = sentMessage.data.result.message_id; // Store the message ID of the sent message
@@ -56,6 +57,7 @@ export default async function handler(req, res) {
           chat_id: chat.id,
           message_id: messageId,
           text: responseText,
+          parse_mode: "Markdown",  // Set parse mode for formatting
         });
 
         return res.status(200).json({ status: "success" });
