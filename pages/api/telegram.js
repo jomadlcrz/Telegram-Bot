@@ -27,7 +27,7 @@ export default async function handler(req, res) {
         if (userMessage === "/start") {
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
-            text: "Hello! I'm your AI assistant. How can I help you today?\n\nCheck out my GitHub profile: [jomadlcrz](https://github.com/jomadlcrz)",
+            text: "Hey there! 👋 I'm Gemini AI assistant, here to help you with anything you need. 😊\n\nFeel free to ask me anything, and if you're curious, check out my GitHub profile: [jomadlcrz](https://github.com/jomadlcrz)",
             parse_mode: "Markdown",
           });
           return res.status(200).json({ status: "success" });
