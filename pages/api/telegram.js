@@ -27,7 +27,7 @@ export default async function handler(req, res) {
         if (userMessage === "/start") {
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
-            text: "Hello! 👋 I'm Gemini AI assistant, how can I help you today? 😊\n\nCreated by: [jomadlcrz](https://github.com/jomadlcrz)",
+            text: "Hello! 👋 I'm Gemini AI assistant, How can I help you today? 😊\n\nCreated by: [jomadlcrz](https://github.com/jomadlcrz)",
             parse_mode: "Markdown",
           });
           return res.status(200).json({ status: "success" });
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
           conversationHistory.delete(chat.id); // Reset the conversation history for the user
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
-            text: "Conversation reset. Start a new conversation by asking a question.",
+            text: "*Conversation reset.* ✅ _Start a new conversation by asking a question._",
             parse_mode: "Markdown",
           });
           return res.status(200).json({ status: "success" });
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
 
         // Request Gemini API to generate content based on the entire conversation history
         const aiResponse = await ai.models.generateContent({
-          model: "gemini-1.5-flash", // Choose your model here
+          model: "gemini-2.0-flash", // Choose your model here
           contents: history.join("\n"), // Join all history as a single input
         });
 
