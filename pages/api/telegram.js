@@ -27,8 +27,8 @@ export default async function handler(req, res) {
         if (userMessage === "/start") {
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
-            text: "Hello! I'm your Gemini AI assistant. How can I help you today?\n\nCheck out my GitHub profile: [jomadlcrz](https://github.com/jomadlcrz)",
-            parse_mode: "Markdown",
+            text: `👋 Hi there! I'm your friendly Gemini AI assistant! 🤖💬 How can I help you today? 😊\n\nFeel free to ask me anything or check out my GitHub profile: [jomadlcrz](https://github.com/jomadlcrz) 🙌`,
+            parse_mode: "Markdown", // Use Markdown for formatting
           });
           return res.status(200).json({ status: "success" });
         }
@@ -38,8 +38,8 @@ export default async function handler(req, res) {
           conversationHistory.delete(chat.id); // Reset the conversation history for the user
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
-            text: "*Conversation reset.* ✅ _Start a new conversation by asking a question._",
-            parse_mode: "Markdown",
+            text: "*Conversation reset!* 🎉✅ _You can now start fresh. Just ask me anything._",
+            parse_mode: "Markdown", // Set parse mode if needed
           });
           return res.status(200).json({ status: "success" });
         }
@@ -47,8 +47,8 @@ export default async function handler(req, res) {
         // Send a "Processing your request..." message first and store the message ID
         const sentMessage = await axios.post(TELEGRAM_URL, {
           chat_id: chat.id,
-          text: "_Processing your request..._",
-          parse_mode: "Markdown",
+          text: "_Hold on, I'm working on it..._ 🧠✨",
+          parse_mode: "Markdown", // Use Markdown formatting for processing message
         });
 
         const messageId = sentMessage.data.result.message_id; // Store the message ID of the sent message
@@ -78,18 +78,18 @@ export default async function handler(req, res) {
           chat_id: chat.id,
           message_id: messageId,
           text: responseText,
-          parse_mode: "Markdown",
+          parse_mode: "Markdown", // Set parse mode for formatting
         });
 
         return res.status(200).json({ status: "success" });
       } catch (error) {
         console.error("Error generating content:", error);
-        return res.status(500).json({ error: "Error generating content" });
+        return res.status(500).json({ error: "Oops! Something went wrong while processing your request. 😔 Please try again." });
       }
     } else {
-      return res.status(400).json({ error: "No message found" });
+      return res.status(400).json({ error: "Whoops! I couldn't find any message. 😕 Please send me a message." });
     }
   } else {
-    return res.status(405).json({ error: "Method Not Allowed" });
+    return res.status(405).json({ error: "Oops! That method is not allowed. Please use POST requests." });
   }
 }
