@@ -1,6 +1,8 @@
-// pages/api/telegram.js
 import { GoogleGenAI } from "@google/genai";
 import axios from "axios";
+import { createWriteStream } from "fs";
+import { promisify } from "util";
+import { pipeline } from "stream";
 
 // Initialize the Google Gemini AI client using environment variable
 const ai = new GoogleGenAI({
@@ -11,15 +13,16 @@ const TELEGRAM_API_KEY = process.env.TELEGRAM_API_KEY; // Use environment variab
 const TELEGRAM_URL = `https://api.telegram.org/bot${TELEGRAM_API_KEY}/sendMessage`;
 const TELEGRAM_EDIT_URL = `https://api.telegram.org/bot${TELEGRAM_API_KEY}/editMessageText`;
 
-// In-memory store for conversation history (this can be replaced with a database for persistence)
-const conversationHistory = new Map();
+const conversationHistory = new Map();  // Store conversation history (use a database for persistence)
+
+const streamPipeline = promisify(pipeline);
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
     const { message } = req.body;
 
     if (message) {
-      const { text, chat } = message;
+      const { text, chat, audio } = message;
       const userMessage = text;
 
       try {
@@ -35,7 +38,7 @@ export default async function handler(req, res) {
 
         // Handle /reset command
         if (userMessage === "/reset") {
-          conversationHistory.delete(chat.id); // Reset the conversation history for the user
+          conversationHistory.delete(chat.id);  // Reset the conversation history for the user
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
             text: "Conversation reset. Start a new conversation by asking a question.",
@@ -44,47 +47,100 @@ export default async function handler(req, res) {
           return res.status(200).json({ status: "success" });
         }
 
-        // Send a "Processing your request..." message first and store the message ID
-        const sentMessage = await axios.post(TELEGRAM_URL, {
-          chat_id: chat.id,
-          text: "Processing your request...",
-          parse_mode: "Markdown",
-        });
+        // Handle Audio Messages
+        if (audio) {
+          const audioFileId = audio.file_id;
+          
+          // Get audio file information
+          const fileResponse = await axios.get(`https://api.telegram.org/bot${TELEGRAM_API_KEY}/getFile`, {
+            params: {
+              file_id: audioFileId,
+            },
+          });
 
-        const messageId = sentMessage.data.result.message_id; // Store the message ID of the sent message
+          const filePath = fileResponse.data.result.file_path;
+          const fileUrl = `https://api.telegram.org/file/bot${TELEGRAM_API_KEY}/${filePath}`;
 
-        // Retrieve the previous conversation history for the user (if any)
-        let history = conversationHistory.get(chat.id) || [];
+          // Download the audio file
+          const audioStream = await axios({
+            url: fileUrl,
+            method: "GET",
+            responseType: "stream",
+          });
 
-        // Add the new message to the conversation history
-        history.push(`User: ${userMessage}`);
+          const audioFilePath = `/tmp/audio-${audioFileId}.mp3`;  // Temporary path to store the audio file
+          const writer = createWriteStream(audioFilePath);
+          await streamPipeline(audioStream.data, writer);  // Stream and save the file
 
-        // Request Gemini API to generate content based on the entire conversation history
-        const aiResponse = await ai.models.generateContent({
-          model: "gemini-1.5-flash", // Choose your model here
-          contents: history.join("\n"), // Join all history as a single input
-        });
+          // Upload audio to Gemini API (you can use File API here or base64 if small file)
+          const base64Audio = await new Promise((resolve, reject) => {
+            const fileBuffer = [];
+            writer.on('finish', () => {
+              const audioBuffer = require('fs').readFileSync(audioFilePath);
+              resolve(audioBuffer.toString('base64'));
+            });
+            writer.on('error', reject);
+          });
 
-        const responseText = aiResponse.text;
+          // Send the audio as inline data to Gemini API
+          const aiResponse = await ai.models.generateContent({
+            model: "gemini-1.5-flash",  // Your chosen model
+            contents: [
+              { text: "Please summarize the audio." },
+              { inlineData: { mimeType: "audio/mpeg", data: base64Audio } },
+            ],
+          });
 
-        // Add the AI response to the conversation history (no "AI:" prefix)
-        history.push(responseText); // Just add the raw response
+          const responseText = aiResponse.text;
 
-        // Store the updated conversation history
-        conversationHistory.set(chat.id, history);
+          // Send AI response back to Telegram
+          await axios.post(TELEGRAM_URL, {
+            chat_id: chat.id,
+            text: responseText,
+            parse_mode: "Markdown",
+          });
 
-        // Edit the "Processing your request..." message with the actual AI response
-        await axios.post(TELEGRAM_EDIT_URL, {
-          chat_id: chat.id,
-          message_id: messageId,
-          text: responseText,
-          parse_mode: "Markdown",
-        });
+          return res.status(200).json({ status: "success" });
+        }
 
-        return res.status(200).json({ status: "success" });
+        // Handle text-based user messages
+        if (userMessage) {
+          // Send a "Processing your request..." message
+          const sentMessage = await axios.post(TELEGRAM_URL, {
+            chat_id: chat.id,
+            text: "Processing your request...",
+            parse_mode: "Markdown",
+          });
+
+          const messageId = sentMessage.data.result.message_id;
+
+          // Retrieve and update conversation history
+          let history = conversationHistory.get(chat.id) || [];
+          history.push(`User: ${userMessage}`);
+
+          const aiResponse = await ai.models.generateContent({
+            model: "gemini-1.5-flash", // Your model choice
+            contents: history.join("\n"),  // Join all history as a single input
+          });
+
+          const responseText = aiResponse.text;
+          history.push(responseText); // Store AI response
+
+          conversationHistory.set(chat.id, history);
+
+          // Edit the "Processing your request..." message with AI response
+          await axios.post(TELEGRAM_EDIT_URL, {
+            chat_id: chat.id,
+            message_id: messageId,
+            text: responseText,
+            parse_mode: "Markdown",
+          });
+
+          return res.status(200).json({ status: "success" });
+        }
       } catch (error) {
-        console.error("Error generating content:", error);
-        return res.status(500).json({ error: "Error generating content" });
+        console.error("Error processing request:", error);
+        return res.status(500).json({ error: "Error processing request" });
       }
     } else {
       return res.status(400).json({ error: "No message found" });
