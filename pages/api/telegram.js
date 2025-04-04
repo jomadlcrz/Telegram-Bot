@@ -24,6 +24,27 @@ export default async function handler(req, res) {
       const userId = chat.id;
 
       try {
+        // Handle /start command
+        if (userMessage === "/start") {
+          await axios.post(TELEGRAM_URL, {
+            chat_id: userId,
+            text: "Hey there! 👋 I'm your friendly assistant powered by Gemini AI! 😊\n\nAsk me anything, and I'll do my best to help! Feel free to explore my [GitHub profile](https://github.com/jomadlcrz) too!",
+            parse_mode: "Markdown",
+          });
+          return res.status(200).json({ status: "success" });
+        }
+
+        // Handle /reset command
+        if (userMessage === "/reset") {
+          userContexts.delete(userId); // Reset the user context
+          await axios.post(TELEGRAM_URL, {
+            chat_id: userId,
+            text: "Your conversation history has been reset! Start fresh by asking a question. 😊",
+            parse_mode: "Markdown",
+          });
+          return res.status(200).json({ status: "success" });
+        }
+
         // Initialize user context if it's a new user
         if (!userContexts.has(userId)) {
           userContexts.set(userId, [
