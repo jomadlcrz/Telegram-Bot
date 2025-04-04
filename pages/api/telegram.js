@@ -12,8 +12,9 @@ const ai = new GoogleGenAI({
 const TELEGRAM_API_KEY = process.env.TELEGRAM_API_KEY; // Use environment variable for Telegram Bot API Key
 const TELEGRAM_URL = `https://api.telegram.org/bot${TELEGRAM_API_KEY}/sendMessage`;
 const TELEGRAM_EDIT_URL = `https://api.telegram.org/bot${TELEGRAM_API_KEY}/editMessageText`;
+const TELEGRAM_UPLOAD_URL = `https://api.telegram.org/bot${TELEGRAM_API_KEY}/sendPhoto`;
 
-const conversationHistory = new Map();  // Store conversation history (use a database for persistence)
+const conversationHistory = new Map(); // Store conversation history
 
 const streamPipeline = promisify(pipeline);
 
@@ -47,53 +48,55 @@ export default async function handler(req, res) {
           return res.status(200).json({ status: "success" });
         }
 
-        // Handle Audio Messages
-        if (audio) {
-          const audioFileId = audio.file_id;
-          
-          // Get audio file information
-          const fileResponse = await axios.get(`https://api.telegram.org/bot${TELEGRAM_API_KEY}/getFile`, {
-            params: {
-              file_id: audioFileId,
+        // Handle Image Generation Request (Command: /generate_image)
+        if (userMessage.startsWith("/generate_image")) {
+          const prompt = userMessage.replace("/generate_image", "").trim();
+
+          if (!prompt) {
+            await axios.post(TELEGRAM_URL, {
+              chat_id: chat.id,
+              text: "Please provide a description after /generate_image to create an image.",
+            });
+            return res.status(200).json({ status: "success" });
+          }
+
+          // Request Gemini API to generate content with text and image
+          const response = await ai.models.generateContent({
+            model: "gemini-2.0-flash-exp-image-generation",
+            contents: prompt,
+            config: {
+              responseModalities: ["Text", "Image"],  // Include text and image in the response
             },
           });
 
-          const filePath = fileResponse.data.result.file_path;
-          const fileUrl = `https://api.telegram.org/file/bot${TELEGRAM_API_KEY}/${filePath}`;
+          // Process the response and handle text and image output
+          let imageBuffer = null;
+          let responseText = "";
 
-          // Download the audio file
-          const audioStream = await axios({
-            url: fileUrl,
-            method: "GET",
-            responseType: "stream",
-          });
+          for (const part of response.candidates[0].content.parts) {
+            if (part.text) {
+              responseText += part.text;  // Collect the text response
+            } else if (part.inlineData) {
+              const imageData = part.inlineData.data;
+              imageBuffer = Buffer.from(imageData, "base64");  // Convert base64 to image buffer
+            }
+          }
 
-          const audioFilePath = `/tmp/audio-${audioFileId}.mp3`;  // Temporary path to store the audio file
-          const writer = createWriteStream(audioFilePath);
-          await streamPipeline(audioStream.data, writer);  // Stream and save the file
+          // If an image was generated, upload it to Telegram
+          if (imageBuffer) {
+            const imagePath = "/tmp/generated-image.png";  // Temporary file path
+            createWriteStream(imagePath).write(imageBuffer);
 
-          // Upload audio to Gemini API (you can use File API here or base64 if small file)
-          const base64Audio = await new Promise((resolve, reject) => {
-            const fileBuffer = [];
-            writer.on('finish', () => {
-              const audioBuffer = require('fs').readFileSync(audioFilePath);
-              resolve(audioBuffer.toString('base64'));
+            const form = new FormData();
+            form.append("chat_id", chat.id);
+            form.append("photo", imageBuffer, "generated-image.png");
+
+            await axios.post(TELEGRAM_UPLOAD_URL, form, {
+              headers: form.getHeaders(),
             });
-            writer.on('error', reject);
-          });
+          }
 
-          // Send the audio as inline data to Gemini API
-          const aiResponse = await ai.models.generateContent({
-            model: "gemini-1.5-flash",  // Your chosen model
-            contents: [
-              { text: "Please summarize the audio." },
-              { inlineData: { mimeType: "audio/mpeg", data: base64Audio } },
-            ],
-          });
-
-          const responseText = aiResponse.text;
-
-          // Send AI response back to Telegram
+          // Send the text response along with the image
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
             text: responseText,
@@ -103,7 +106,7 @@ export default async function handler(req, res) {
           return res.status(200).json({ status: "success" });
         }
 
-        // Handle text-based user messages
+        // Handle other text-based user messages
         if (userMessage) {
           // Send a "Processing your request..." message
           const sentMessage = await axios.post(TELEGRAM_URL, {
