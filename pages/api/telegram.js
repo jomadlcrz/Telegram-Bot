@@ -27,7 +27,7 @@ export default async function handler(req, res) {
         if (userMessage === "/start") {
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
-            text: "Hello! I'm your Gemini AI assistant. How can I help you today?",
+            text: "Hello! I'm your Gemini AI assistant. How can I help you today?\n Github: @jomadlcrz",
             parse_mode: "Markdown", // Set parse mode if needed
           });
           return res.status(200).json({ status: "success" });
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
           conversationHistory.delete(chat.id); // Reset the conversation history for the user
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
-            text: "*Conversation reset.* ✔️ _Start a new conversation by asking a question._",
+            text: "*Conversation reset.* ✅ _Start a new conversation by asking a question._",
             parse_mode: "Markdown", // Set parse mode if needed
           });
           return res.status(200).json({ status: "success" });
