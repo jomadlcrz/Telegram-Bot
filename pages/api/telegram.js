@@ -27,7 +27,7 @@ export default async function handler(req, res) {
         if (userMessage === "/start") {
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
-            text: "Hello! I'm your AI assistant. How can I help you today?\n\nCheck out my GitHub profile: [jomadlcrz](https://github.com/jomadlcrz)",
+            text: "Hey there! 👋 I'm your friendly AI assistant, here to help you with anything you need. 😊\n\nFeel free to ask me anything, and if you're curious, check out my GitHub profile: [jomadlcrz](https://github.com/jomadlcrz) 🧑‍💻",
             parse_mode: "Markdown",
           });
           return res.status(200).json({ status: "success" });
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
           conversationHistory.delete(chat.id); // Reset the conversation history for the user
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
-            text: "Conversation reset. Start a new conversation by asking a question.",
+            text: "Conversation reset ✅. If you have any new questions, feel free to ask away! 😄",
             parse_mode: "Markdown",
           });
           return res.status(200).json({ status: "success" });
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
         // Send a "Processing your request..." message first and store the message ID
         const sentMessage = await axios.post(TELEGRAM_URL, {
           chat_id: chat.id,
-          text: "Processing your request...",
+          text: "Hold on a moment... I'm thinking 🤔...",
           parse_mode: "Markdown",
         });
 
@@ -84,6 +84,11 @@ export default async function handler(req, res) {
         return res.status(200).json({ status: "success" });
       } catch (error) {
         console.error("Error generating content:", error);
+        await axios.post(TELEGRAM_URL, {
+          chat_id: chat.id,
+          text: "Oops! Something went wrong 😔. Please try again later.",
+          parse_mode: "Markdown",
+        });
         return res.status(500).json({ error: "Error generating content" });
       }
     } else {
