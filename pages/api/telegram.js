@@ -27,8 +27,8 @@ export default async function handler(req, res) {
         if (userMessage === "/start") {
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
-            text: "Hello! I'm your Gemini AI assistant. How can I help you today?\n Github: @jomadlcrz",
-            parse_mode: "Markdown", // Set parse mode if needed
+            text: "Hello! I'm your Gemini AI assistant. How can I help you today?\n\nGithub: @jomadlcrz",
+            parse_mode: "Markdown",
           });
           return res.status(200).json({ status: "success" });
         }
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
           await axios.post(TELEGRAM_URL, {
             chat_id: chat.id,
             text: "*Conversation reset.* ✅ _Start a new conversation by asking a question._",
-            parse_mode: "Markdown", // Set parse mode if needed
+            parse_mode: "Markdown",
           });
           return res.status(200).json({ status: "success" });
         }
@@ -48,7 +48,7 @@ export default async function handler(req, res) {
         const sentMessage = await axios.post(TELEGRAM_URL, {
           chat_id: chat.id,
           text: "_Processing your request..._",
-          parse_mode: "Markdown",  // You can also use "HTML" here
+          parse_mode: "Markdown",
         });
 
         const messageId = sentMessage.data.result.message_id; // Store the message ID of the sent message
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
           chat_id: chat.id,
           message_id: messageId,
           text: responseText,
-          parse_mode: "Markdown",  // Set parse mode for formatting
+          parse_mode: "Markdown",
         });
 
         return res.status(200).json({ status: "success" });
