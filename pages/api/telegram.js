@@ -23,6 +23,27 @@ export default async function handler(req, res) {
       const userId = from.id;
       const userMessage = text;
 
+      // Handle /start command
+      if (userMessage === "/start") {
+        await axios.post(TELEGRAM_URL, {
+          chat_id: chat.id,
+          text: "Hey there! 👋 I'm your friendly AI assistant, here to help you with anything you need. 😊\n\nFeel free to ask me anything, and if you're curious, check out my GitHub profile: [jomadlcrz](https://github.com/jomadlcrz) 🧑‍💻",
+          parse_mode: "Markdown",
+        });
+        return res.status(200).json({ status: "success" });
+      }
+
+      // Handle /reset command
+      if (userMessage === "/reset") {
+        userContexts.delete(userId); // Reset the user context
+        await axios.post(TELEGRAM_URL, {
+          chat_id: chat.id,
+          text: "Conversation reset ✅. If you have any new questions, feel free to ask away! 😄",
+          parse_mode: "Markdown",
+        });
+        return res.status(200).json({ status: "success" });
+      }
+
       // Initialize user context if not already present
       if (!userContexts.has(userId)) {
         userContexts.set(userId, [
@@ -44,7 +65,7 @@ export default async function handler(req, res) {
         // Send a "Processing..." message first and store the message ID
         const sentMessage = await axios.post(TELEGRAM_URL, {
           chat_id: chat.id,
-          text: "Processing your request... 🤔",
+          text: "Hold on a moment... I'm thinking 🤔...",
           parse_mode: "Markdown",
         });
 
